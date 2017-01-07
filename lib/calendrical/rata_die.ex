@@ -23,12 +23,21 @@ defmodule Calendrical.RataDie do
     raise InvalidRataDieFractionError, "Invalid Rata Die Fraction: denominator has to be larger than zero!"
   end
 
+
+
   def new(_day, num, denom) when abs(num) > denom do
     raise InvalidRataDieFractionError, "Invalid Rata Die Fraction: numerator #{num} should be smaller than denominator #{denom}"
   end
 
+  def new(days, num, denom) when num < 0 do
+    days = days - 1
+    num = denom + num
+    new(days, num, denom)
+  end
+
   def new(day, num, denom) do
-    %__MODULE__{days: day, num: num, denom: denom}
+    gcd = Calendrical.Helper.gcd(num, denom)
+    %__MODULE__{days: day, num: div(num, gcd), denom: div(denom, gcd)}
   end
 
   def epoch do
@@ -48,8 +57,15 @@ defmodule Calendrical.RataDie do
       raise InvalidRataDieFractionError, "Invalid Rata Die Fraction: numerator #{num} should be smaller than denominator #{denom}"
     end
 
+    def new(days, num, denom) when num < 0 do
+      days = days - 1
+      num = denom + num
+      new(days, num, denom)
+    end
+
     def new(day, num, denom) do
-      %__MODULE__{days: day, num: num, denom: denom}
+      gcd = Calendrical.Helper.gcd(num, denom)
+      %__MODULE__{days: day, num: div(num, gcd), denom: div(denom, gcd)}
     end
 
     def absolute(period = %__MODULE__{}) do
@@ -59,18 +75,13 @@ defmodule Calendrical.RataDie do
     def negate(period = %__MODULE__{}) do
       new(-period.days, -period.num, period.denom)
     end
+
   end
 
   def add_period(rd = %__MODULE__{}, period = %Period{}) do
     days = rd.days + period.days
     denom = rd.denom * period.denom
-    {days, num}  =
-      case (rd.num * period.denom - period.num * rd.denom) do
-        num when num < 0 ->
-          {days - 1, denom + num}
-        num ->
-          {days, num}
-      end
+    num = rd.num * period.denom - period.num * rd.denom
     new(days, num, denom)
   end
 
@@ -81,13 +92,7 @@ defmodule Calendrical.RataDie do
   def diff(rd1 = %__MODULE__{}, rd2 = %__MODULE__{}) do
     days = rd2.days - rd1.days
     denom = rd1.denom * rd2.denom
-    {days, num} =
-      case (rd2.num * rd1.denom - rd1.num * rd2.denom) do
-        num when num < 0 ->
-          {days - 1, denom + num}
-        num ->
-          {days, num}
-    end
+    num = rd2.num * rd1.denom - rd1.num * rd2.denom
     Period.new(days, num, denom)
   end
 
